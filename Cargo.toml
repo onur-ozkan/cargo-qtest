@@ -8,8 +8,8 @@ path = "src/main.rs"
 name = "cargo-qtest"
 
 [dependencies]
-inquire = "0.6.2"
-regex = "1.10.2"
+inquire = { version = "0.6.2", default-features = false, features = ["crossterm"] }
+regex = { version = "1.10.2", default-features = false }
 
 [profile.dev]
 opt-level = 0

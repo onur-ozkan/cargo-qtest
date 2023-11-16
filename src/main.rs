@@ -46,6 +46,7 @@ fn filter_test_options(lines: Vec<String>) -> Vec<String> {
         .collect()
 }
 
+/// Spawns a multi-select prompt for choosing tests to be returned.
 fn spawn_prompt_for_tests(options: &[String]) -> Vec<String> {
     let validator = |a: &[ListOption<&String>]| {
         if a.is_empty() {
@@ -66,8 +67,11 @@ fn spawn_prompt_for_tests(options: &[String]) -> Vec<String> {
         String::default()
     };
 
-    let render_config = RenderConfig::default_colored();
-    let render_config = render_config.with_prompt_prefix(Styled::new(""));
+    let render_config = RenderConfig::default_colored()
+        .with_prompt_prefix(Styled::new(""))
+        .with_highlighted_option_prefix(Styled::new(""))
+        .with_scroll_up_prefix(Styled::new("▲").with_fg(Color::DarkYellow))
+        .with_scroll_down_prefix(Styled::new("▼").with_fg(Color::DarkYellow));
 
     // List items
     let stylesheet = StyleSheet::new()
@@ -122,6 +126,8 @@ fn spawn_prompt_for_tests(options: &[String]) -> Vec<String> {
     }
 }
 
+// Application entrypoint which collects test informations, prompts the user to select tests,
+// does some tricky stuff around cargo and executes the requested tests.
 fn main() {
     println!("Collecting test files from the project..\n");
 
@@ -147,6 +153,8 @@ fn main() {
 
     cmd.args(["test", "--"]);
 
+    // We do this weird shit here since cargo does not support running multiple
+    // tests individually.
     for item in final_items {
         cmd.args(["--skip", &item]);
     }
