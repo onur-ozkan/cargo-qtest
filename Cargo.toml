@@ -5,7 +5,7 @@ edition = "2021"
 
 [[bin]]
 path = "src/main.rs"
-name = "qtest"
+name = "cargo-qtest"
 
 [dependencies]
 inquire = "0.6.2"
