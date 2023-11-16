@@ -1,12 +1,18 @@
 use inquire::formatter::MultiOptionFormatter;
 use inquire::list_option::ListOption;
+use inquire::ui::Attributes;
+use inquire::ui::Color;
+use inquire::ui::RenderConfig;
+use inquire::ui::StyleSheet;
+use inquire::ui::Styled;
 use inquire::validator::Validation;
 use inquire::MultiSelect;
 use regex::Regex;
 use std::process::exit;
 use std::process::Command;
 
-fn get_cargo_test_output() -> Result<String, String> {
+/// Cargo wrapper to retrieve test metadata.
+fn get_cargo_test_output() -> Result<Vec<String>, String> {
     let output = Command::new("cargo")
         .args([
             "test", "--", "--list", "--color", "never", "--format", "terse",
@@ -15,13 +21,16 @@ fn get_cargo_test_output() -> Result<String, String> {
         .map_err(|e| format!("Reading test metadata failed. {}", e))?;
 
     if output.status.success() {
-        String::from_utf8(output.stdout).map_err(|e| format!("Reading stdout failed. {}", e))
+        String::from_utf8(output.stdout)
+            .map(|data| data.lines().map(String::from).collect())
+            .map_err(|e| format!("Reading stdout failed. {}", e))
     } else {
         eprintln!("Cargo failed with: {:?}", output.status);
         exit(1);
     }
 }
 
+/// Filters out the test paths with regex from a vector of strings.
 fn filter_test_options(lines: Vec<String>) -> Vec<String> {
     let pattern = Regex::new(r": test$").expect("Invalid regex pattern");
 
@@ -37,17 +46,7 @@ fn filter_test_options(lines: Vec<String>) -> Vec<String> {
         .collect()
 }
 
-fn main() {
-    let lines = match get_cargo_test_output() {
-        Ok(stdout) => stdout.lines().map(String::from).collect(),
-        Err(err) => {
-            eprintln!("{}", err);
-            exit(1);
-        }
-    };
-
-    let options = filter_test_options(lines);
-
+fn spawn_prompt_for_tests(options: &[String]) -> Vec<String> {
     let validator = |a: &[ListOption<&String>]| {
         if a.is_empty() {
             Ok(Validation::Invalid(
@@ -67,15 +66,76 @@ fn main() {
         String::default()
     };
 
-    let answer = MultiSelect::new(
+    let render_config = RenderConfig::default_colored();
+    let render_config = render_config.with_prompt_prefix(Styled::new(""));
+
+    // List items
+    let stylesheet = StyleSheet::new()
+        .with_fg(Color::Grey)
+        .with_attr(Attributes::ITALIC);
+    let render_config = render_config.with_option(stylesheet);
+
+    // Selected item
+    let stylesheet = StyleSheet::new()
+        .with_fg(Color::LightGreen)
+        .with_attr(Attributes::BOLD);
+    let render_config = render_config.with_selected_option(Some(stylesheet));
+
+    // Text input
+    let stylesheet = StyleSheet::new().with_fg(Color::LightMagenta);
+    let render_config = render_config.with_text_input(stylesheet);
+
+    // Shortcuts
+    let stylesheet = StyleSheet::new()
+        .with_fg(Color::DarkBlue)
+        .with_attr(Attributes::BOLD);
+    let render_config = render_config.with_help_message(stylesheet);
+
+    let render_config = render_config.with_selected_checkbox(
+        Styled::new("+")
+            .with_fg(Color::DarkGreen)
+            .with_attr(Attributes::BOLD),
+    );
+
+    let render_config = render_config.with_unselected_checkbox(
+        Styled::new("-")
+            .with_fg(Color::DarkRed)
+            .with_attr(Attributes::BOLD),
+    );
+
+    match MultiSelect::new(
         "Select set of tests you wish to execute (at least 1 must be chosen):",
-        options.clone(),
+        options.to_vec(),
     )
+    .with_render_config(render_config)
     .with_validator(validator)
     .with_formatter(formatter)
     .with_page_size(20)
+    .with_help_message("↑↓: Navigate | Space: Choose | →: Select All, | ←: Undo All")
     .prompt()
-    .unwrap();
+    {
+        Ok(t) => t,
+        Err(_) => {
+            // Most probably this is an interrupt from the user
+            exit(1);
+        }
+    }
+}
+
+fn main() {
+    println!("Collecting test files from the project..\n");
+
+    let lines = match get_cargo_test_output() {
+        Ok(t) => t,
+        Err(err) => {
+            eprintln!("{}", err);
+            exit(1);
+        }
+    };
+
+    let options = filter_test_options(lines);
+
+    let answer = spawn_prompt_for_tests(&options);
 
     let final_items: Vec<String> = options
         .iter()
@@ -100,7 +160,7 @@ fn main() {
 mod tests {
     #[test]
     fn test_filter_test_options() {
-        let input = vec![
+        let input = [
             "apple_function: test",
             "apple_function2: test",
             "apple_function3 test",
@@ -127,4 +187,3 @@ mod tests {
         );
     }
 }
-
