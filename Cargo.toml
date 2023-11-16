@@ -1,0 +1,12 @@
+[package]
+name = "cargo-qtest"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+path = "src/main.rs"
+name = "qtest"
+
+[dependencies]
+inquire = "0.6.2"
+regex = "1.10.2"
