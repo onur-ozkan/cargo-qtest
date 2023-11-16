@@ -10,3 +10,22 @@ name = "cargo-qtest"
 [dependencies]
 inquire = "0.6.2"
 regex = "1.10.2"
+
+[profile.dev]
+opt-level = 0
+debug = true
+debug-assertions = true
+overflow-checks = true
+lto = false
+panic = 'abort'
+incremental = true
+codegen-units = 256
+rpath = false
+
+[profile.release]
+debug = 0
+strip = true
+opt-level = 3
+lto = "fat"
+panic = "abort"
+codegen-units = 1
