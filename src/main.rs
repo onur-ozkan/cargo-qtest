@@ -145,18 +145,16 @@ fn main() {
         args = args[1..].to_vec();
     }
 
-    let mut first_args = vec![];
-    let mut second_args = vec![];
-
-    if let Some(index) = args.iter().position(|x| x == "--") {
+    let (first_args, second_args) = if let Some(index) = args.iter().position(|x| x == "--") {
         let (f, s) = args.split_at(index);
-        first_args = f.to_vec();
-        second_args = s[1..].to_vec();
-    }
+        (f, &s[1..])
+    } else {
+        (&args[..], &[][..])
+    };
 
     println!("Collecting test files from the project..\n");
 
-    let lines = match get_cargo_test_output(&first_args, &second_args) {
+    let lines = match get_cargo_test_output(first_args, second_args) {
         Ok(t) => t,
         Err(err) => {
             eprintln!("{}", err);
