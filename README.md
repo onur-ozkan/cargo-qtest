@@ -1,6 +1,7 @@
 <div align="center">
 
-![asciinema](https://github.com/onur-ozkan/cargo-qtest/assets/39852038/02d302c8-4934-4110-b183-5b89ea0ef8ca)
+![capture](https://github.com/onur-ozkan/cargo-qtest/assets/39852038/9274506e-58f1-4676-a387-04240b18048f)
+
 
 </div>
 
