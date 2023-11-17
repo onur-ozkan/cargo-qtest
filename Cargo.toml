@@ -2,6 +2,14 @@
 name = "cargo-qtest"
 version = "0.1.0"
 edition = "2021"
+authors = ["Onur Ozkan <contact@onurozkan.dev>"]
+license = "MIT"
+readme = "README.md"
+repository = "https://github.com/onur-ozkan/cargo-qtest"
+homepage = "https://github.com/onur-ozkan/cargo-qtest"
+description = "an interactive test runner for rust projects"
+categories = ["development-tools::cargo-plugins"]
+keywords = ["cargo", "test", "util", "interactive"]
 
 [[bin]]
 path = "src/main.rs"
