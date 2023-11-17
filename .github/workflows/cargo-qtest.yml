@@ -30,7 +30,7 @@ jobs:
 
       - name: unit tests
         run: |
-          cargo test
+          cargo test -- --test-threads=1
 
   build:
     timeout-minutes: 10

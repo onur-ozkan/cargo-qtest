@@ -8,16 +8,24 @@ use inquire::ui::Styled;
 use inquire::validator::Validation;
 use inquire::MultiSelect;
 use regex::Regex;
+use std::env;
 use std::ffi::OsString;
 use std::process::exit;
 use std::process::Command;
+
+/// Returns the cargo binary path from the `CARGO` environment
+/// variable; this enables us to execute cargo from the correct
+/// toolchain.
+fn cargo_bin() -> String {
+    env::var("CARGO").unwrap_or_else(|_| String::from("cargo"))
+}
 
 /// Cargo wrapper to retrieve test metadata.
 fn get_cargo_test_output(
     first_args: &[OsString],
     second_args: &[OsString],
 ) -> Result<Vec<String>, String> {
-    let mut cargo = Command::new("cargo");
+    let mut cargo = Command::new(cargo_bin());
 
     let cargo = cargo
         .arg("test")
@@ -143,8 +151,16 @@ fn spawn_prompt_for_tests(options: &[String]) -> Vec<String> {
 fn main() {
     let mut args = std::env::args_os().skip(1).collect::<Vec<OsString>>();
 
-    if args[0].to_string_lossy().ends_with("qtest") {
-        args = args[1..].to_vec();
+    if let Some(arg) = args.get(0) {
+        if arg.to_string_lossy().starts_with('+') {
+            args = args[1..].to_vec();
+        }
+    }
+
+    if let Some(arg) = args.get(0) {
+        if arg.to_string_lossy().ends_with("qtest") {
+            args = args[1..].to_vec();
+        }
     }
 
     let (first_args, second_args) = if let Some(index) = args.iter().position(|x| x == "--") {
@@ -174,7 +190,7 @@ fn main() {
         .cloned()
         .collect();
 
-    let mut cargo = Command::new("cargo");
+    let mut cargo = Command::new(cargo_bin());
 
     cargo.envs(std::env::vars_os());
 
@@ -196,7 +212,10 @@ fn main() {
     output.wait().unwrap();
 }
 
+#[cfg(test)]
 mod tests {
+    use super::*;
+
     #[test]
     fn test_filter_test_options() {
         let input = [
@@ -224,5 +243,17 @@ mod tests {
                 "module_t::demo_module::apple_function2"
             ]
         );
+    }
+
+    #[test]
+    fn test_cargo_bin_when_cargo_env_variable_set() {
+        env::set_var("CARGO", "cargo_from_the_toolchain_path");
+        assert_eq!(cargo_bin(), "cargo_from_the_toolchain_path");
+    }
+
+    #[test]
+    fn test_cargo_bin_with_no_cargo_env_variable() {
+        env::remove_var("CARGO");
+        assert_eq!(cargo_bin(), "cargo");
     }
 }
