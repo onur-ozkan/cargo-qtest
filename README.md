@@ -2,7 +2,7 @@
 
 `cargo-qtest` is a command-line tool that enhances the testing experience for Rust projects by providing an interactive and flexible way to find & select and run tests using pattern matching.
 
-![capture](https://github.com/onur-ozkan/cargo-qtest/assets/39852038/9274506e-58f1-4676-a387-04240b18048f)
+![asci](https://github.com/onur-ozkan/cargo-qtest/assets/39852038/1675f44f-cfbc-47a1-92a6-cfb9c3590010)
 
 ### Install
 
