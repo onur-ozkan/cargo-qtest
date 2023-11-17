@@ -26,6 +26,8 @@ fn get_cargo_test_output(
         .args(second_args)
         .args(["--list", "--color", "never", "--format", "terse"]);
 
+    cargo.envs(std::env::vars_os());
+
     let output = cargo
         .output()
         .map_err(|e| format!("Reading test metadata failed. {}", e))?;
@@ -173,6 +175,8 @@ fn main() {
         .collect();
 
     let mut cargo = Command::new("cargo");
+
+    cargo.envs(std::env::vars_os());
 
     cargo
         .arg("test")
