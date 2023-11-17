@@ -8,15 +8,25 @@ use inquire::ui::Styled;
 use inquire::validator::Validation;
 use inquire::MultiSelect;
 use regex::Regex;
+use std::ffi::OsString;
 use std::process::exit;
 use std::process::Command;
 
 /// Cargo wrapper to retrieve test metadata.
-fn get_cargo_test_output() -> Result<Vec<String>, String> {
-    let output = Command::new("cargo")
-        .args([
-            "test", "--", "--list", "--color", "never", "--format", "terse",
-        ])
+fn get_cargo_test_output(
+    first_args: &[OsString],
+    second_args: &[OsString],
+) -> Result<Vec<String>, String> {
+    let mut cargo = Command::new("cargo");
+
+    let cargo = cargo
+        .arg("test")
+        .args(first_args)
+        .arg("--")
+        .args(second_args)
+        .args(["--list", "--color", "never", "--format", "terse"]);
+
+    let output = cargo
         .output()
         .map_err(|e| format!("Reading test metadata failed. {}", e))?;
 
@@ -108,7 +118,7 @@ fn spawn_prompt_for_tests(options: &[String]) -> Vec<String> {
     );
 
     match MultiSelect::new(
-        "Select set of tests you wish to execute (at least 1 must be chosen):",
+        "Search and select set of tests you wish to execute:",
         options.to_vec(),
     )
     .with_render_config(render_config)
@@ -129,9 +139,24 @@ fn spawn_prompt_for_tests(options: &[String]) -> Vec<String> {
 // Application entrypoint which collects test informations, prompts the user to select tests,
 // does some tricky stuff around cargo and executes the requested tests.
 fn main() {
+    let mut args = std::env::args_os().skip(1).collect::<Vec<OsString>>();
+
+    if args[0].to_string_lossy().ends_with("qtest") {
+        args = args[1..].to_vec();
+    }
+
+    let mut first_args = vec![];
+    let mut second_args = vec![];
+
+    if let Some(index) = args.iter().position(|x| x == "--") {
+        let (f, s) = args.split_at(index);
+        first_args = f.to_vec();
+        second_args = s[1..].to_vec();
+    }
+
     println!("Collecting test files from the project..\n");
 
-    let lines = match get_cargo_test_output() {
+    let lines = match get_cargo_test_output(&first_args, &second_args) {
         Ok(t) => t,
         Err(err) => {
             eprintln!("{}", err);
@@ -149,19 +174,23 @@ fn main() {
         .cloned()
         .collect();
 
-    let mut cmd = Command::new("cargo");
+    let mut cargo = Command::new("cargo");
 
-    cmd.args(["test", "--"]);
+    cargo
+        .arg("test")
+        .args(first_args)
+        .arg("--")
+        .args(second_args);
 
     // We do this weird shit here since cargo does not support running multiple
     // tests individually.
     for item in final_items {
-        cmd.args(["--skip", &item]);
+        cargo.args(["--skip", &item]);
     }
 
-    cmd.arg("--exact");
+    cargo.arg("--exact");
 
-    let mut output = cmd.spawn().unwrap();
+    let mut output = cargo.spawn().unwrap();
     output.wait().unwrap();
 }
 
