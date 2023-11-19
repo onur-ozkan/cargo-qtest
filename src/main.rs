@@ -12,6 +12,7 @@ use std::env;
 use std::ffi::OsString;
 use std::process::exit;
 use std::process::Command;
+use std::process::Stdio;
 
 /// Returns the cargo binary path from the `CARGO` environment
 /// variable; this enables us to execute cargo from the correct
@@ -25,14 +26,18 @@ fn get_cargo_test_output(
     first_args: &[OsString],
     second_args: &[OsString],
 ) -> Result<Vec<String>, String> {
-    let mut cargo = Command::new(cargo_bin());
+    println!("Collecting test files from the project..\n");
 
+    let mut cargo = Command::new(cargo_bin());
     let cargo = cargo
         .arg("test")
         .args(first_args)
+        .arg("--quiet")
         .arg("--")
         .args(second_args)
         .args(["--list", "--color", "never", "--format", "terse"]);
+
+    cargo.stderr(Stdio::inherit());
 
     cargo.envs(std::env::vars_os());
 
@@ -40,14 +45,13 @@ fn get_cargo_test_output(
         .output()
         .map_err(|e| format!("Reading test metadata failed. {}", e))?;
 
-    if output.status.success() {
-        String::from_utf8(output.stdout)
-            .map(|data| data.lines().map(String::from).collect())
-            .map_err(|e| format!("Reading stdout failed. {}", e))
-    } else {
-        eprintln!("Cargo failed with: {:?}", output.status);
+    if !output.status.success() {
         exit(1);
     }
+
+    String::from_utf8(output.stdout)
+        .map(|data| data.lines().map(String::from).collect())
+        .map_err(|e| format!("Reading stdout failed. {}", e))
 }
 
 /// Filters out the test paths with regex from a vector of strings.
@@ -169,8 +173,6 @@ fn main() {
     } else {
         (&args[..], &[][..])
     };
-
-    println!("Collecting test files from the project..\n");
 
     let lines = match get_cargo_test_output(first_args, second_args) {
         Ok(t) => t,
