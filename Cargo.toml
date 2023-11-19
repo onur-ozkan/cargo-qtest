@@ -10,6 +10,7 @@ homepage = "https://github.com/onur-ozkan/cargo-qtest"
 description = "an interactive test runner for rust projects"
 categories = ["development-tools::cargo-plugins"]
 keywords = ["cargo", "test", "util", "interactive"]
+exclude = [".asciinema", ".github/"]
 
 [[bin]]
 path = "src/main.rs"
