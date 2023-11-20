@@ -10,6 +10,8 @@ use inquire::MultiSelect;
 use regex::Regex;
 use std::env;
 use std::ffi::OsString;
+use std::io::BufRead;
+use std::io::BufReader;
 use std::process::exit;
 use std::process::Command;
 use std::process::Stdio;
@@ -26,32 +28,34 @@ fn get_cargo_test_output(
     first_args: &[OsString],
     second_args: &[OsString],
 ) -> Result<Vec<String>, String> {
-    println!("Collecting test files from the project..\n");
-
     let mut cargo = Command::new(cargo_bin());
     let cargo = cargo
+        .stdout(Stdio::piped())
         .arg("test")
         .args(first_args)
-        .arg("--quiet")
         .arg("--")
-        .args(second_args)
-        .args(["--list", "--color", "never", "--format", "terse"]);
+        .args(["--list", "--format", "terse"])
+        .args(second_args);
 
     cargo.stderr(Stdio::inherit());
 
     cargo.envs(std::env::vars_os());
 
-    let output = cargo
-        .output()
-        .map_err(|e| format!("Reading test metadata failed. {}", e))?;
+    let mut child = cargo
+        .spawn()
+        .map_err(|e| format!("Failed during the cargo execution. {}", e))?;
 
-    if !output.status.success() {
+    let output = child
+        .wait()
+        .map_err(|e| format!("Reading stdout failed. {}", e))?;
+
+    if !output.success() {
         exit(1);
     }
 
-    String::from_utf8(output.stdout)
-        .map(|data| data.lines().map(String::from).collect())
-        .map_err(|e| format!("Reading stdout failed. {}", e))
+    let reader = BufReader::new(child.stdout.unwrap());
+
+    Ok(reader.lines().map(|line| line.unwrap()).collect())
 }
 
 /// Filters out the test paths with regex from a vector of strings.
