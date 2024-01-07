@@ -157,19 +157,31 @@ fn spawn_prompt_for_tests(options: &[String]) -> Vec<String> {
 // Application entrypoint which collects test informations, prompts the user to select tests,
 // does some tricky stuff around cargo and executes the requested tests.
 fn main() {
+    // Skip the first argument, which is the binary name (e.g., "cargo").
     let mut args = std::env::args_os().skip(1).collect::<Vec<OsString>>();
 
+    // If the next argument starts with `+` (toolchain), we skip it too. (e.g., `+nightly`)
     if let Some(arg) = args.get(0) {
         if arg.to_string_lossy().starts_with('+') {
             args = args[1..].to_vec();
         }
     }
 
+    // If the next argument ends with `qtest`, we skip it too. That's us!
     if let Some(arg) = args.get(0) {
         if arg.to_string_lossy().ends_with("qtest") {
             args = args[1..].to_vec();
         }
     }
+
+    // Do we want to watch?
+    let mut watch = false;
+    if let Some(arg) = args.get(0) {
+        if arg.to_string_lossy().eq("--watch") {
+            args = args[1..].to_vec();
+            watch = true
+        }
+    };
 
     let (first_args, second_args) = if let Some(index) = args.iter().position(|x| x == "--") {
         let (f, s) = args.split_at(index);
@@ -196,26 +208,61 @@ fn main() {
         .cloned()
         .collect();
 
-    let mut cargo = Command::new(cargo_bin());
-
-    cargo.envs(std::env::vars_os());
-
-    cargo
-        .arg("test")
-        .args(first_args)
-        .arg("--")
-        .args(second_args);
+    // Build the final cargo test command.
+    let mut cargo = format!(
+        "{} test {} -- {}",
+        cargo_bin(),
+        first_args
+            .iter()
+            .map(|x| x.to_string_lossy())
+            .fold(String::new(), |mut acc, f| {
+                acc.push(' ');
+                acc.push_str(&f);
+                acc
+            }),
+        second_args
+            .iter()
+            .map(|x| x.to_string_lossy())
+            .fold(String::new(), |mut acc, f| {
+                acc.push(' ');
+                acc.push_str(&f);
+                acc
+            }),
+    );
 
     // We do this weird shit here since cargo does not support running multiple
     // tests individually.
     for item in final_items {
-        cargo.args(["--skip", &item]);
+        cargo.push_str(" --skip ");
+        cargo.push_str(&item);
     }
 
-    cargo.arg("--exact");
+    cargo.push_str(" --exact");
 
-    let mut output = cargo.spawn().unwrap();
-    output.wait().unwrap();
+    if watch {
+        cargo = format!("{} watch -- {}", cargo_bin(), cargo);
+    }
+
+    let mut cmd = {
+        #[cfg(target_family = "windows")]
+        {
+            let mut cmd = Command::new("cmd");
+            cmd.arg("/c");
+            cmd
+        }
+
+        // Assume `sh` is available everywhere else
+        // and let it fail if not
+        #[cfg(not(target_family = "windows"))]
+        {
+            let mut cmd = Command::new("sh");
+            cmd.arg("-c");
+            cmd
+        }
+    };
+
+    cmd.envs(std::env::vars_os()).arg(cargo);
+    cmd.spawn().unwrap().wait().unwrap();
 }
 
 #[cfg(test)]
