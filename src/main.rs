@@ -174,12 +174,18 @@ fn main() {
         }
     }
 
-    // Do we want to watch?
-    let mut watch = false;
+    // Do we want a custom cargo command?
+    let mut custom_cargo_command = None;
     if let Some(arg) = args.get(0) {
-        if arg.to_string_lossy().eq("--watch") {
-            args = args[1..].to_vec();
-            watch = true
+        if arg.to_string_lossy().eq("-c") {
+            // The next argument is the custom cargo command.
+            let Some(arg) = args.get(1) else {
+                eprintln!("Missing custom cargo command after -c");
+                exit(1);
+            };
+
+            custom_cargo_command = Some(arg.to_string_lossy().to_string());
+            args = args[2..].to_vec();
         }
     };
 
@@ -210,8 +216,9 @@ fn main() {
 
     // Build the final cargo test command.
     let mut cargo = format!(
-        "{} test {} -- {}",
+        "{} {} {} -- {}",
         cargo_bin(),
+        custom_cargo_command.as_deref().unwrap_or_else(|| "test"),
         first_args
             .iter()
             .map(|x| x.to_string_lossy())
@@ -238,10 +245,6 @@ fn main() {
     }
 
     cargo.push_str(" --exact");
-
-    if watch {
-        cargo = format!("{} watch -- {}", cargo_bin(), cargo);
-    }
 
     let mut cmd = {
         #[cfg(target_family = "windows")]
