@@ -159,13 +159,13 @@ fn spawn_prompt_for_tests(options: &[String]) -> Vec<String> {
 fn main() {
     let mut args = std::env::args_os().skip(1).collect::<Vec<OsString>>();
 
-    if let Some(arg) = args.get(0) {
+    if let Some(arg) = args.first() {
         if arg.to_string_lossy().starts_with('+') {
             args = args[1..].to_vec();
         }
     }
 
-    if let Some(arg) = args.get(0) {
+    if let Some(arg) = args.first() {
         if arg.to_string_lossy().ends_with("qtest") {
             args = args[1..].to_vec();
         }
