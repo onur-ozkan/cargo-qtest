@@ -56,7 +56,7 @@ fn get_cargo_test_output(
 
     let reader = BufReader::new(child.stdout.unwrap());
 
-    Ok(reader.lines().flatten().collect())
+    Ok(reader.lines().map_while(Result::ok).collect())
 }
 
 /// Filters out the test paths with regex from a vector of strings.
