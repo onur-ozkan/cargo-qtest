@@ -7,7 +7,7 @@ use inquire::ui::StyleSheet;
 use inquire::ui::Styled;
 use inquire::validator::Validation;
 use inquire::MultiSelect;
-use regex::Regex;
+use std::collections::HashSet;
 use std::env;
 use std::ffi::OsString;
 use std::io::BufRead;
@@ -30,7 +30,7 @@ fn get_cargo_test_output(
 ) -> Result<Vec<String>, String> {
     let mut cargo = Command::new(cargo_bin());
 
-    let cargo = cargo
+    cargo
         .stdout(Stdio::piped())
         .arg("test")
         .args(first_args)
@@ -42,36 +42,24 @@ fn get_cargo_test_output(
 
     cargo.envs(std::env::vars_os());
 
-    let mut child = cargo
-        .spawn()
+    let output = cargo
+        .output()
         .map_err(|e| format!("Failed during the cargo execution. {}", e))?;
 
-    let output = child
-        .wait()
-        .map_err(|e| format!("Reading stdout failed. {}", e))?;
-
-    if !output.success() {
+    if !output.status.success() {
         exit(1);
     }
 
-    let reader = BufReader::new(child.stdout.unwrap());
+    let reader = BufReader::new(output.stdout.as_slice());
 
     Ok(reader.lines().map_while(Result::ok).collect())
 }
 
 /// Filters out the test paths with regex from a vector of strings.
 fn filter_test_options(lines: Vec<String>) -> Vec<String> {
-    let pattern = Regex::new(r": test$").expect("Invalid regex pattern");
-
     lines
         .into_iter()
-        .filter_map(|s| {
-            if pattern.is_match(&s) {
-                Some(pattern.replace(&s, "").to_string())
-            } else {
-                None
-            }
-        })
+        .filter_map(|s| s.strip_suffix(": test").map(|item| item.to_string()))
         .collect()
 }
 
@@ -191,9 +179,11 @@ fn main() {
 
     let answer = spawn_prompt_for_tests(&options);
 
+    let answer_set: HashSet<&str> = answer.iter().map(String::as_str).collect();
+
     let final_items: Vec<String> = options
         .iter()
-        .filter(|&value| !answer.contains(value))
+        .filter(|value| !answer_set.contains(value.as_str()))
         .cloned()
         .collect();
 

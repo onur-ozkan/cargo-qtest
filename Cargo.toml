@@ -18,7 +18,6 @@ name = "cargo-qtest"
 
 [dependencies]
 inquire = { version = "0.6.2", default-features = false, features = ["crossterm"] }
-regex = { version = "1.10.2", default-features = false }
 
 [profile.dev]
 opt-level = 0
