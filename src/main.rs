@@ -29,6 +29,7 @@ fn get_cargo_test_output(
     second_args: &[OsString],
 ) -> Result<Vec<String>, String> {
     let mut cargo = Command::new(cargo_bin());
+
     let cargo = cargo
         .stdout(Stdio::piped())
         .arg("test")
@@ -55,7 +56,7 @@ fn get_cargo_test_output(
 
     let reader = BufReader::new(child.stdout.unwrap());
 
-    Ok(reader.lines().map(|line| line.unwrap()).collect())
+    Ok(reader.lines().flatten().collect())
 }
 
 /// Filters out the test paths with regex from a vector of strings.
